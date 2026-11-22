@@ -63,8 +63,14 @@ h2 { font-size: 16px; margin: 0 0 10px; }
 .cifra .l { color: var(--muted); font-size: 12.5px; }
 .nota { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
 .vuoto { color: var(--muted); font-size: 14px; }
-.grafico { width: 100%; }
-.grafico svg { display: block; width: 100%; }
+.grafico { width: 100%; height: 230px; transition: height .3s ease; }
+.grafico.tre-d { height: 320px; }
+.scelta { display: inline-flex; float: right; margin: -38px 0 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.scelta button { background: transparent; color: var(--muted); padding: 4px 12px; font-size: 12.5px; }
+.scelta button.attivo { background: var(--accent); color: #fff; }
+section { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease; }
+section.visibile { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { section { opacity: 1; transform: none; transition: none; } }
 .legenda { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
 .legenda i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: 0; }
 .dettaglio { font-size: 13px; min-height: 1.4em; margin-top: 6px; font-variant-numeric: tabular-nums; }
@@ -103,6 +109,8 @@ details summary { cursor: pointer; color: var(--accent); font-size: 13.5px; marg
   </nav>
 </header>
 <main id="main"></main>
+<script src="lib/echarts.min.js"></script>
+<script src="lib/echarts-gl.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

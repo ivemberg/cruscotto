@@ -1,6 +1,6 @@
 // Guscio dell'app in cache per aprirla anche offline; i dati cifrati in d/ dalla rete, con l'ultima copia come riserva.
-const VERSIONE = 'cruscotto-2';
-const GUSCIO = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icone/180.png', 'icone/192.png', 'icone/512.png'];
+const VERSIONE = 'cruscotto-3';
+const GUSCIO = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icone/180.png', 'icone/192.png', 'icone/512.png', 'lib/echarts.min.js', 'lib/echarts-gl.min.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSIONE).then((c) => c.addAll(GUSCIO)).then(() => self.skipWaiting()));

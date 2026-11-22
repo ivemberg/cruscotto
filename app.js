@@ -71,8 +71,6 @@ function h(tag, attr, ...figli) {
   for (const f of figli.flat(Infinity)) if (f != null && f !== false) e.append(f instanceof Node ? f : String(f));
   return e;
 }
-const SVG = 'http://www.w3.org/2000/svg';
-function s(tag, attr) { const e = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attr || {})) e.setAttribute(k, v); return e; }
 const colore = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#888';
 const euro = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 const num = (n) => new Intl.NumberFormat('it-IT').format(n || 0);
@@ -95,61 +93,94 @@ function tabella(intestazioni, righe) {
 function sezione(id, titolo, ...contenuto) { return h('section', { id }, h('h2', {}, titolo), ...contenuto); }
 const carta = (...c) => h('div', { class: 'carta' }, ...c);
 
-// Barre impilate per giorno. Tocco o passaggio su una barra: dettaglio sotto il grafico.
-function barre({ giorni, serie, valore, coloreSerie, formato = num }) {
+// Grafici con ECharts: barre impilate 2D (tocco per i valori, pizzico o trascinamento per scorrere
+// i giorni) e vista 3D che si ruota col dito. Il grafico si disegna quando entra nello schermo,
+// così l'animazione si vede.
+const ha3d = (() => {
+  try { return !!window.echarts && !!document.createElement('canvas').getContext('webgl'); } catch { return false; }
+})();
+const quandoVisibile = new IntersectionObserver((voci) => {
+  for (const v of voci) if (v.isIntersecting) { quandoVisibile.unobserve(v.target); v.target._mostra?.(); }
+}, { rootMargin: '0px 0px -10% 0px' });
+
+function barre({ giorni, serie, valore, coloreSerie, formato = num, vista = '2d' }) {
+  if (!window.echarts) return h('p', { class: 'vuoto' }, 'Grafico non disponibile.');
   const box = h('div', { class: 'grafico' });
-  const dettaglio = h('div', { class: 'dettaglio' }, 'Tocca una barra per i dettagli');
-  const legenda = h('div', { class: 'legenda' }, serie.map((x) => h('span', {}, h('i', { style: `background:${colore(coloreSerie(x))}` }), x)));
-  const totali = giorni.map((g) => serie.reduce((a, x) => a + (valore(g, x) || 0), 0));
-  const mostra = (i) => {
-    const parti = serie.map((x) => [x, valore(giorni[i], x) || 0]).filter(([, v]) => v);
-    dettaglio.textContent = `${giornoBreve(giorni[i])}: ${parti.length ? parti.map(([x, v]) => `${x} ${formato(v)}`).join(' · ') : 'niente'}${parti.length > 1 ? ` · totale ${formato(totali[i])}` : ''}`;
+  const dati = serie.map((x) => giorni.map((g) => valore(g, x) || 0));
+  const asse = (v) => formato === euro ? `${v}€` : num(v);
+  const testo = { color: colore('--muted'), fontSize: 10 };
+  const linea = { lineStyle: { color: colore('--line') } };
+  const suggerimento = { confine: true, backgroundColor: colore('--card'), borderColor: colore('--line'), textStyle: { color: colore('--ink'), fontSize: 12 } };
+  let grafico = null;
+
+  const opzioni2d = () => ({
+    animationDuration: 900, animationEasing: 'cubicOut', animationDelay: (i) => i * 12,
+    grid: { left: 42, right: 8, top: 14, bottom: serie.length > 1 ? 58 : 34 },
+    tooltip: { ...suggerimento, trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: formato },
+    legend: serie.length > 1 ? { bottom: 0, icon: 'roundRect', itemWidth: 10, itemHeight: 10, textStyle: { color: colore('--muted'), fontSize: 11 } } : undefined,
+    dataZoom: [{ type: 'inside', start: giorni.length > 16 ? 100 * (1 - 16 / giorni.length) : 0, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: false }],
+    xAxis: { type: 'category', data: giorni.map(giornoBreve), axisLabel: { ...testo, hideOverlap: true }, axisLine: linea, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { ...testo, formatter: asse }, splitLine: linea },
+    series: serie.map((x, i) => ({ name: x, type: 'bar', stack: 'tot', data: dati[i], barMaxWidth: 22,
+      itemStyle: { color: colore(coloreSerie(x)), borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } })),
+  });
+
+  const opzioni3d = () => {
+    const punti = [];
+    serie.forEach((x, i) => giorni.forEach((g, j) => { if (dati[i][j]) punti.push({ value: [j, i, dati[i][j]], itemStyle: { color: colore(coloreSerie(x)) } }); }));
+    return {
+      tooltip: { ...suggerimento, formatter: (p) => `${giornoBreve(giorni[p.value[0]])} · ${serie[p.value[1]]}: ${formato(p.value[2])}` },
+      xAxis3D: { type: 'category', data: giorni.map(giornoBreve), name: '', axisLabel: { ...testo, interval: Math.max(0, Math.ceil(giorni.length / 7) - 1) } },
+      yAxis3D: { type: 'category', data: serie, name: '', axisLabel: { ...testo, interval: 0 } },
+      zAxis3D: { type: 'value', name: '', axisLabel: { ...testo, formatter: asse } },
+      grid3D: {
+        boxWidth: 200, boxDepth: Math.max(40, serie.length * 24), boxHeight: 80,
+        axisLine: linea, splitLine: linea, axisPointer: { show: false }, axisTick: { show: false },
+        viewControl: { autoRotate: true, autoRotateSpeed: 5, autoRotateAfterStill: 4, distance: box.clientWidth < 500 ? 330 : 250, alpha: 24, beta: 35, panSensitivity: 0 },
+        light: { main: { intensity: 1.15, alpha: 40, beta: 30 }, ambient: { intensity: 0.45 } },
+      },
+      series: [{ type: 'bar3D', data: punti, shading: 'lambert', bevelSize: 0.3, bevelSmoothness: 2,
+        emphasis: { label: { show: false } }, animationDurationUpdate: 700 }],
+    };
   };
-  let larghezza = 0;
+
   const disegna = () => {
-    const W = box.clientWidth; if (!W || W === larghezza) return; larghezza = W;
-    const H = 160, L = 38, R = 4, T = 8, B = 20;
-    const passo = niceStep(Math.max(...totali, 0));
-    const max = passo * 4 || 1;
-    const bw = (W - L - R) / giorni.length;
-    const y = (v) => T + (H - T - B) * (1 - v / max);
-    const g = s('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img' });
-    for (let k = 0; k <= 4; k++) {
-      const v = passo * k;
-      g.append(s('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: colore('--line') }));
-      const t = s('text', { x: L - 5, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 10, fill: colore('--muted') });
-      t.textContent = formato === euro ? (v >= 1 ? `${Math.round(v)}€` : `${v.toFixed(2).replace('.', ',')}€`) : num(v);
-      g.append(t);
-    }
-    const ogni = Math.ceil(giorni.length / Math.max(1, Math.floor((W - L) / 42)));
-    giorni.forEach((giorno, i) => {
-      const x = L + i * bw;
-      let base = 0;
-      for (const x2 of serie) {
-        const v = valore(giorno, x2) || 0; if (!v) continue;
-        g.append(s('rect', { x: x + bw * 0.15, width: Math.max(1, bw * 0.7), y: y(base + v), height: Math.max(0.5, y(base) - y(base + v)), fill: colore(coloreSerie(x2)), rx: 1.5 }));
-        base += v;
-      }
-      if (i % ogni === 0 || i === giorni.length - 1) {
-        const ultimo = i === giorni.length - 1;
-        const t = s('text', { x: ultimo ? W - R : x + bw / 2, y: H - 5, 'text-anchor': ultimo ? 'end' : 'middle', 'font-size': 10, fill: colore('--muted') });
-        t.textContent = giornoBreve(giorno); g.append(t);
-      }
-      const area = s('rect', { x, y: 0, width: bw, height: H, fill: 'transparent' });
-      area.addEventListener('pointerenter', () => mostra(i));
-      area.addEventListener('click', () => mostra(i));
-      g.append(area);
-    });
-    box.replaceChildren(g);
+    if (!grafico) grafico = echarts.init(box, null, { renderer: 'canvas' });
+    grafico.clear();
+    box.classList.toggle('tre-d', vista === '3d');
+    grafico.resize();
+    grafico.setOption(vista === '3d' ? opzioni3d() : opzioni2d(), true);
   };
-  new ResizeObserver(disegna).observe(box);
-  return h('div', {}, box, serie.length > 1 ? legenda : null, dettaglio);
+  box._mostra = disegna;
+  quandoVisibile.observe(box);
+  new ResizeObserver(() => grafico?.resize()).observe(box);
+
+  const scelta = ha3d ? h('div', { class: 'scelta' }, ['2D', '3D'].map((v) => {
+    const b = h('button', { type: 'button', class: v.toLowerCase() === vista ? 'attivo' : '', 'aria-pressed': String(v.toLowerCase() === vista) }, v);
+    b.addEventListener('click', () => {
+      vista = v.toLowerCase();
+      for (const x of b.parentNode.children) { x.classList.toggle('attivo', x === b); x.setAttribute('aria-pressed', String(x === b)); }
+      disegna();
+    });
+    return b;
+  })) : null;
+  if (!ha3d) vista = '2d';
+  const aiuto = h('p', { class: 'nota' }, ha3d ? 'Tocca una barra per i valori. In 3D trascina per ruotare, pizzica per avvicinare.' : 'Tocca una barra per i valori; trascina per scorrere i giorni.');
+  return h('div', {}, scelta, box, aiuto);
 }
-function niceStep(max) {
-  if (max <= 0) return 1;
-  const grezzo = max / 4, p = 10 ** Math.floor(Math.log10(grezzo));
-  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= grezzo) return m * p;
-  return 10 * p;
+
+// Cifre che contano da zero quando compaiono.
+function conta(el, valore, formato) {
+  const durata = 900, inizio = performance.now();
+  const passo = (t) => {
+    const k = Math.min(1, (t - inizio) / durata), e = 1 - (1 - k) ** 3;
+    el.textContent = formato(formato === euro ? valore * e : Math.round(valore * e));
+    if (k < 1) requestAnimationFrame(passo);
+  };
+  el._mostra = () => requestAnimationFrame(passo);
+  el.textContent = formato(0);
+  quandoVisibile.observe(el);
+  return el;
 }
 
 // ---------- sezioni ----------
@@ -186,12 +217,12 @@ function riepilogo(D) {
   const ultimoDl = D.download.map((r) => r.giorno).sort().pop();
   const dl7 = ultimoDl ? somma(D.download.filter((r) => giorniFino(ultimoDl, 7).includes(r.giorno)), 'download') : 0;
   const valutazioni = D.ios.length ? somma(D.ios, 'valutazioni') : Object.values(D.stato.valutazioni_ios || {}).reduce((a, b) => a + b, 0);
-  const cifra = (n, l) => h('div', { class: 'carta cifra' }, h('div', { class: 'n' }, n), h('div', { class: 'l' }, l));
+  const cifra = (v, f, l) => h('div', { class: 'carta cifra' }, conta(h('div', { class: 'n' }), v, f), h('div', { class: 'l' }, l));
   return h('div', { class: 'cifre' },
-    cifra(euro(somma(D.guadagni.filter((r) => r.giorno?.startsWith(mese)), 'importo')), 'Guadagni questo mese'),
-    cifra(euro(somma(D.guadagni.filter((r) => r.giorno === giorniFa(1)), 'importo')), 'Guadagni ieri'),
-    cifra(num(dl7), ultimoDl ? `Download in 7 giorni, fino al ${giornoBreve(ultimoDl)}` : 'Download in 7 giorni'),
-    cifra(num(valutazioni), 'Valutazioni su App Store'));
+    cifra(somma(D.guadagni.filter((r) => r.giorno?.startsWith(mese)), 'importo'), euro, 'Guadagni questo mese'),
+    cifra(somma(D.guadagni.filter((r) => r.giorno === giorniFa(1)), 'importo'), euro, 'Guadagni ieri'),
+    cifra(dl7, num, ultimoDl ? `Download in 7 giorni, fino al ${giornoBreve(ultimoDl)}` : 'Download in 7 giorni'),
+    cifra(valutazioni, num, 'Valutazioni su App Store'));
 }
 
 function guadagni(D) {
@@ -221,7 +252,7 @@ function download(D) {
   const sette = giorniFino(ultimo, 7);
   const app = APP.filter((a) => D.download.some((r) => r.app === a && r.download));
   return sezione('download', 'Download', carta(
-    barre({ giorni, serie: app, coloreSerie: (a) => COLORE_APP[a],
+    barre({ giorni, serie: app, coloreSerie: (a) => COLORE_APP[a], vista: '3d',
       valore: (g, a) => somma(D.download.filter((r) => r.giorno === g && r.app === a), 'download') }),
     h('p', { class: 'nota' }, `Ultimi 7 giorni con dati (fino al ${giornoBreve(ultimo)})`),
     tabella([['App'], ['iPhone', 'num'], ['Android', 'num'], ['Totale', 'num']], APP.map((a) => {
@@ -404,6 +435,8 @@ async function mostra(disp) {
   const D = unisci(M, P, A);
   main.replaceChildren(...[riepilogo(D), guadagni(D), download(D), app(D), pubblicita(D), ricerche(D), daFare(D), attivita(D), stampa(D), await impostazioni(disp, D)].filter(Boolean));
   document.getElementById('menu').hidden = false;
+  const comparsa = new IntersectionObserver((voci) => { for (const v of voci) if (v.isIntersecting) { v.target.classList.add('visibile'); comparsa.unobserve(v.target); } }, { rootMargin: '0px 0px -5% 0px' });
+  for (const sez of main.querySelectorAll('section')) comparsa.observe(sez);
 }
 
 (async () => {
