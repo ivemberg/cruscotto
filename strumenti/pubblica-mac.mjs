@@ -11,6 +11,10 @@ const dati = '/Users/ivo.bettini/.claude/scheduled-tasks/controllo-marketing-app
 const nomi = ['guadagni', 'download', 'pubblicita', 'classifica', 'posizioni', 'attivita',
   'da_fare', 'testate', 'articoli', 'lullabox_mail', 'stato-leggero'];
 
+if (!JSON.parse(readFileSync(join(repo, 'chiavi.json'), 'utf8')).length) {
+  console.log('Nessun dispositivo abbinato: niente da pubblicare.');
+  process.exit(0);
+}
 const git = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' }).trim();
 
 const dataset = {};
