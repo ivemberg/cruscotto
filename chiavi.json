@@ -9,5 +9,16 @@
    "e": "AQAB",
    "alg": "RSA-OAEP-256"
   }
+ },
+ {
+  "kid": "51b717770585",
+  "nome": "Secondo dispositivo di Ivo",
+  "aggiunta": "2026-11-22",
+  "jwk": {
+   "kty": "RSA",
+   "n": "l0uA08Ua_e1tnSARXiMczuU9IQ9VnOCL-5IxiV93J2jSk0_qUmQVy7qAbeocITYhvc4LMFThqFHH08GV6cwkscXgaLAcdxniDHgJor4EE0LKt_SoVSRvQf7fCmmkbHlYFVk7_dBl_wv3HSS4kJfVU8xHEaHmHM-nHBKOrDb6_rM1Lh-1_M1L0dI4NgEyURja7DMoiqEKoxDhTglwg-MCx4m8eYbLFO1JIGSyUjVRfqERGVEtODcLYMAEfrprBjMut73frxJDlZ-anRuYW2mAt5MsRYXiOTwjP2FRyNLcP1G9HaaX0ddekrsaXl-p9frJlPeiQQKssszO9O8HBCBr8Pt94-nRKx0h79JdWm77D3YXWRbmxSK8MPG6pLqRwg1BsndGbvMKmKrHObOekc-0CEAaL7JHBCuQXNOd7P00uZHuewgdIB09UMEXVa9ZM5v0IToGWyzqe6uaPF4mSUAN40Y8-C0R99AlmdHTyWp-V4Vhh9vXSR0XxbII-mviaO4t",
+   "e": "AQAB",
+   "alg": "RSA-OAEP-256"
+  }
  }
 ]
