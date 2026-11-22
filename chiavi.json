@@ -1,1 +1,13 @@
-[]
+[
+ {
+  "kid": "fc654a40ddb1",
+  "nome": "iPhone di Ivo",
+  "aggiunta": "2026-11-22",
+  "jwk": {
+   "kty": "RSA",
+   "n": "9K3B--7nCCFFhBCDamLrGWyIvF5dWkDJK0Ao7mCwjWOaSDEnUY8TxSRTI8_-MxaJ9hMUHvBI84xgIrgVHG00CIzf-3Eygvadk6lxlAECu_SGOkW9E-BEpL-r0YaODP_Qcytj0WyHfds2fhz6kRZDwv-hulzNhimi2md4HlwnM-4Vk_f_ReSAs6kjXwlwk9B4s8SHbQ0nbS72t7T7PzH6Dk6YeHToIBs_YELUIcG5Hlic05pRE7oqwrKhgchQUNcGzZTY3QV0TKU9FO22dJexvYhFWRCM1tRGTMPMvnNHUruZXP4MLU9socdjTtCXj7s38HUtrD6OEuPmgPGc3Pt0-aonXIaixZ7i21oTruPR7PFvxcMw5o7O0tHxY1a-x8ddnHgIIp_SbFoXmoaRv2ASyf_MqCOCtEMs0dYw1jlvS1QfvUMVGOqkvDV1tRgf6EXzs5J7x7mI70Mn9NBfXe8pJBoXlTB2L3MfjX_0RhYH1B3H1ZTIWRzZo_Vr6ft7I3Hr",
+   "e": "AQAB",
+   "alg": "RSA-OAEP-256"
+  }
+ }
+]
