@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..');
 try { execFileSync('git', ['-C', repo, 'pull', '--rebase', '--quiet']); } catch { /* si decide con quello che c'è */ }
+if (!JSON.parse(readFileSync(join(repo, 'chiavi.json'), 'utf8')).length) {
+  console.log('NO nessun dispositivo abbinato al cruscotto');
+  process.exit(0);
+}
 const leggi = (f, campo) => existsSync(join(repo, f)) ? Date.parse(JSON.parse(readFileSync(join(repo, f), 'utf8'))[campo]) : 0;
 const richiesta = leggi('richiesta.json', 'chiesto');
 const ultima = leggi('.ultima-pubblicazione.json', 'at');
