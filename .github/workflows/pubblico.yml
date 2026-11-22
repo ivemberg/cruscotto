@@ -1,5 +1,7 @@
-name: Dati pubblici ogni ora
+name: Dati ogni ora
 
+# Solo orario e bottone «Controlla ora»: nessun avvio da pull request, così i segreti
+# non sono mai disponibili a codice che non sia nel ramo main.
 on:
   schedule:
     - cron: '17 6-23 * * *'
@@ -15,13 +17,28 @@ concurrency:
 jobs:
   aggiorna:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    # I segreti delle API stanno nell'ambiente «api», usabile solo dal ramo main.
+    environment: api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: node strumenti/pubblico.mjs
+      - name: API ufficiali
+        run: node strumenti/api.mjs
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_VENDOR: ${{ secrets.ASC_VENDOR }}
+          PLAY_SA_JSON: ${{ secrets.PLAY_SA_JSON }}
+          PLAY_BUCKET: ${{ secrets.PLAY_BUCKET }}
+          ADMOB_CLIENT_ID: ${{ secrets.ADMOB_CLIENT_ID }}
+          ADMOB_CLIENT_SECRET: ${{ secrets.ADMOB_CLIENT_SECRET }}
+          ADMOB_REFRESH_TOKEN: ${{ secrets.ADMOB_REFRESH_TOKEN }}
+          ADMOB_PUBLISHER: ${{ secrets.ADMOB_PUBLISHER }}
       # Dal bottone «Controlla ora»: lascia una richiesta che il Mac raccoglie al primo giro.
       - if: github.event_name == 'workflow_dispatch'
         run: echo "{\"chiesto\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > richiesta.json
@@ -29,8 +46,9 @@ jobs:
         run: |
           git config user.name ivemberg
           git config user.email ivojuniorbettini@gmail.com
-          if [ -f d/pubblico.json ]; then git add d/pubblico.json; fi
-          if [ -f richiesta.json ]; then git add richiesta.json; fi
-          git commit -q -m "Dati pubblici" || exit 0
+          for f in d/pubblico.json d/api.json richiesta.json; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          git commit -q -m "Dati ogni ora" || exit 0
           for i in 1 2 3; do git pull --rebase -q && git push -q && exit 0; sleep 5; done
           exit 1

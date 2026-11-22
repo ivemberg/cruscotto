@@ -153,7 +153,14 @@ function niceStep(max) {
 }
 
 // ---------- sezioni ----------
-function unisci(M, P) {
+// Le righe delle API ufficiali sostituiscono quelle del Mac con la stessa chiave; le altre restano.
+function sovrapponi(base, sopra, chiave) {
+  const m = new Map((base || []).map((r) => [chiave(r), r]));
+  for (const r of sopra || []) m.set(chiave(r), r);
+  return [...m.values()];
+}
+
+function unisci(M, P, A) {
   const d = M?.dataset || {};
   const classifica = [...(d.classifica || [])];
   for (const r of P?.classifica || []) {
@@ -164,11 +171,13 @@ function unisci(M, P) {
   }
   const pNuovo = P && (!M || P.aggiornato > M.aggiornato);
   return {
-    guadagni: d.guadagni || [], download: d.download || [], pubblicita: d.pubblicita || [],
+    guadagni: sovrapponi(d.guadagni, A?.guadagni, (r) => `${r.giorno}|${r.fonte}|${r.app}|${r.piattaforma}`),
+    download: sovrapponi(d.download, A?.download, (r) => `${r.giorno}|${r.app}|${r.piattaforma}`),
+    pubblicita: sovrapponi(d.pubblicita, A?.pubblicita, (r) => `${r.giorno}|${r.piattaforma}`),
     classifica, posizioni: pNuovo && P.posizioni?.length ? P.posizioni : (d.posizioni || []),
     attivita: d.attivita || [], da_fare: d.da_fare || [], testate: d.testate || [],
     articoli: d.articoli || [], lullabox_mail: d.lullabox_mail || [],
-    ios: P?.ios || [], stato: d['stato-leggero'] || {},
+    ios: P?.ios || [], stato: d['stato-leggero'] || {}, fonti: A?.fonti || null, erroriApi: A?.errori || [],
   };
 }
 
@@ -299,7 +308,7 @@ function cartaChiave(disp, titolo, spiegazione) {
     h('p', { class: 'nota' }, `Dispositivo ${disp.kid}. È la chiave pubblica: non è segreta e serve solo a cifrare i dati per questo dispositivo.`));
 }
 
-async function impostazioni(disp) {
+async function impostazioni(disp, D) {
   const token = await kvGet('token');
   const campo = h('input', { type: 'password', placeholder: 'github_pat_…', autocomplete: 'off' });
   const esito = h('p', { class: 'nota' }, token ? 'Token salvato su questo dispositivo.' : 'Nessun token: il bottone «Controlla ora» non può partire.');
@@ -308,7 +317,13 @@ async function impostazioni(disp) {
     await kvSet('token', v); campo.value = ''; esito.textContent = 'Token salvato su questo dispositivo.';
   };
   const togli = async () => { await kvSet('token', undefined); esito.textContent = 'Token tolto.'; };
-  return sezione('impostazioni', 'Impostazioni',
+  const stati = { ok: 'collegato', errore: 'errore', 'chiavi mancanti': 'non ancora collegato' };
+  const api = carta(h('h2', {}, 'API ufficiali'),
+    D.fonti ? tabella([['Fonte'], ['Stato']], Object.entries(D.fonti).map(([f, st]) => [f, h('span', { class: `etichetta ${st === 'ok' ? 'ok' : st === 'errore' ? 'alta' : ''}` }, stati[st] || st)]))
+      : h('p', { class: 'vuoto' }, 'Nessuna API collegata: guadagni e download arrivano dai controlli sul Mac.'),
+    D.erroriApi.length ? h('p', { class: 'nota' }, D.erroriApi.join(' · ')) : null,
+    h('p', { class: 'nota' }, 'Quando un\'API è collegata, i suoi numeri sostituiscono quelli letti dal Mac per gli stessi giorni; il resto resta.'));
+  return sezione('impostazioni', 'Impostazioni', api, h('div', { style: 'height:10px' }),
     carta(h('h2', {}, 'Bottone «Controlla ora»'),
       h('p', {}, 'Serve un token di GitHub che possa solo avviare il controllo di questo repository. Lo crei tu su GitHub e lo incolli qui: resta su questo dispositivo.'),
       h('ol', { class: 'nota' },
@@ -364,7 +379,7 @@ async function controlla(disp) {
 async function mostra(disp) {
   const main = document.getElementById('main');
   const fresco = document.getElementById('fresco');
-  const [m, p] = await Promise.all([carica('mac', disp), carica('pubblico', disp)]);
+  const [m, p, a] = await Promise.all([carica('mac', disp), carica('pubblico', disp), carica('api', disp)]);
   if (m.stato === 'non-abbinato' || (m.stato !== 'ok' && p.stato === 'non-abbinato')) {
     fresco.textContent = 'Dispositivo non abbinato';
     main.replaceChildren(cartaChiave(disp, 'Abbina questo dispositivo',
@@ -377,16 +392,17 @@ async function mostra(disp) {
       h('div', { style: 'height:12px' }), cartaChiave(disp, 'Chiave di questo dispositivo', 'Se il dispositivo non è ancora abbinato, copia la chiave e mandala a Claude nella chat.'));
     return;
   }
-  const M = m.stato === 'ok' ? m.dati : null, P = p.stato === 'ok' ? p.dati : null;
+  const M = m.stato === 'ok' ? m.dati : null, P = p.stato === 'ok' ? p.dati : null, A = a.stato === 'ok' ? a.dati : null;
   const parti = [];
   if (M) {
     const ore = (Date.now() - Date.parse(M.aggiornato)) / 3600000;
     parti.push(`Mac: ${ora(M.aggiornato)}${ore > 2 ? ` (fermo da ${Math.round(ore)} ore, forse in stop)` : ''}`);
   }
   if (P) parti.push(`Pubblici: ${ora(P.aggiornato)}`);
+  if (A) parti.push(`API: ${ora(A.aggiornato)}`);
   fresco.textContent = parti.join(' · ');
-  const D = unisci(M, P);
-  main.replaceChildren(...[riepilogo(D), guadagni(D), download(D), app(D), pubblicita(D), ricerche(D), daFare(D), attivita(D), stampa(D), await impostazioni(disp)].filter(Boolean));
+  const D = unisci(M, P, A);
+  main.replaceChildren(...[riepilogo(D), guadagni(D), download(D), app(D), pubblicita(D), ricerche(D), daFare(D), attivita(D), stampa(D), await impostazioni(disp, D)].filter(Boolean));
   document.getElementById('menu').hidden = false;
 }
 
