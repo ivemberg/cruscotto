@@ -1,0 +1,36 @@
+name: Dati pubblici ogni ora
+
+on:
+  schedule:
+    - cron: '17 6-23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dati
+  cancel-in-progress: false
+
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node strumenti/pubblico.mjs
+      # Dal bottone «Controlla ora»: lascia una richiesta che il Mac raccoglie al primo giro.
+      - if: github.event_name == 'workflow_dispatch'
+        run: echo "{\"chiesto\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > richiesta.json
+      - name: Carica
+        run: |
+          git config user.name ivemberg
+          git config user.email ivojuniorbettini@gmail.com
+          if [ -f d/pubblico.json ]; then git add d/pubblico.json; fi
+          if [ -f richiesta.json ]; then git add richiesta.json; fi
+          git commit -q -m "Dati pubblici" || exit 0
+          for i in 1 2 3; do git pull --rebase -q && git push -q && exit 0; sleep 5; done
+          exit 1
