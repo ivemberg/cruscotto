@@ -20,5 +20,16 @@
    "e": "AQAB",
    "alg": "RSA-OAEP-256"
   }
+ },
+ {
+  "kid": "b42200bada13",
+  "nome": "Browser del Mac di Ivo",
+  "aggiunta": "2026-11-22",
+  "jwk": {
+   "kty": "RSA",
+   "n": "oShCUEst5Qch5FbAorpqC8SWBWJmig1XUu3HKikUxbemv5_fynulA4iy9ujzgcWtB_DMdNbtM3AiMHpVDmVdbs24L-_iPxc8e3xg3CGITrCcVvmZKx4XsSdfkqDQud74teEDOQM9YVPi9RRACtoWQdN_SwArzw6BTCTqGUeVTNr04bzjQhY6gW5mOpXsUz34U1N7c06tclllVKz6fDUIKfNMozYpIOPKDvoEr8jYJqUWBwJwbn4BvqLor8fVAlbziqdJoYdiVlO9BiGa6qowmmCyvY2zFvzXaBocpbbzPipoITZvkV31W-kI9PBRsyv13vumsxyjylhFOfNJlD1Cz0uxNeWPhTKCC6g1OQ_lD9G5uD6Rj73z7u4RZeqiA29fFeHle5yJA_LC0Uoo-vR5MfZe3cOVgTvvI9MDuzfOLObqWqt6h6M1V2F-qEDh6wUBndn9uj-BiJHV0sLp35di4JAEUL9lmBTVO4s1LNVYdtqglb89MKS_60_SuodoJJbn",
+   "e": "AQAB",
+   "alg": "RSA-OAEP-256"
+  }
  }
 ]
